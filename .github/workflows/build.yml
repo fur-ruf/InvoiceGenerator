@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-2022  # Используем 2022, но с настройками для Win7
+    runs-on: windows-2022
     timeout-minutes: 30
 
     steps:
@@ -15,29 +15,29 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Python 3.8 (Win7 compatible)
+      - name: Set up Python 3.8
         uses: actions/setup-python@v5
         with:
           python-version: "3.8.10"
-          architecture: "x86"  # 32-битная версия для лучшей совместимости
+          architecture: "x86"
 
       - name: Install Windows 7 dependencies
         run: |
-          # Устанавливаем необходимые системные компоненты
           choco install -y vcredist2010 kb2999226
 
       - name: Install Python dependencies
         run: |
-          python -m pip install --upgrade pip==20.3.4  # Более старая версия pip для совместимости
+          python -m pip install --upgrade pip==20.3.4
           pip install docxtpl==0.6.3 python-docx==0.8.7 pyinstaller==4.10
 
-      - name: Build EXE with Win7 support
+      - name: Build EXE
         run: |
           pyinstaller `
             --onefile `
             --noconfirm `
             --win-private-assemblies `
             --add-data "template.docx;." `
+            --add-data "company_data.json;." `
             --target-architecture win32 `
             --runtime-tmpdir=. `
             --name InvoiceGenerator `
@@ -46,22 +46,21 @@ jobs:
 
       - name: Add VC++ Redist DLLs
         run: |
-          # Копируем необходимые DLL из системы
           copy "C:\Windows\System32\vcruntime140.dll" dist\
           copy "C:\Windows\System32\msvcp140.dll" dist\
 
-      - name: Upload artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: InvoiceGenerator-Win7
           path: |
             dist/InvoiceGenerator.exe
-            template.docx  # Включаем шаблон в артефакт
+            template.docx
+            company_data.json
           retention-days: 5
 
       - name: Create portable package
         run: |
-          # Создаём ZIP-архив со всеми зависимостями
           Compress-Archive -Path .\dist\* -DestinationPath .\InvoiceGenerator-Win7-Portable.zip
           
       - name: Upload portable package
