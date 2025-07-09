@@ -7,32 +7,32 @@ on:
 
 jobs:
   build:
-    runs-on: windows-2019  # Последняя версия с частичной поддержкой Win7
+    runs-on: windows-2022  # Теперь используем Windows 2022
 
     steps:
     - uses: actions/checkout@v4
 
+    # Устанавливаем Python 3.8 (последний для Win7)
     - name: Set up Python 3.8
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.8'  # Последняя поддерживаемая версия для Win7
+        python-version: '3.8'
+        architecture: 'x86'  # 32-битная версия для лучшей совместимости
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install docxtpl==0.6.3 python-docx==0.8.10 pyinstaller==4.10
 
-    - name: Install Windows SDK
+    # Специальные настройки для совместимости с Win7
+    - name: Build EXE with Win7 support
       run: |
-        choco install -y windows-sdk-8.1
-
-    - name: Build EXE
-      run: |
-        pyinstaller --onefile ^
-          --win-private-assemblies ^
-          --add-data "template.docx;." ^
-          --runtime-tmpdir=. ^
-          --name InvoiceGenerator ^
+        pyinstaller --onefile `
+          --win-private-assemblies `
+          --add-data "template.docx;." `
+          --target-architecture win32 `
+          --runtime-tmpdir=. `
+          --name InvoiceGenerator `
           main.py
 
     - name: Upload artifact
