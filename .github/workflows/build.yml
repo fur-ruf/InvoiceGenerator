@@ -1,42 +1,72 @@
-name: Build for Windows 7
+name: Build Windows 7 Compatible EXE
 
 on:
   push:
-    branches: [main]
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: windows-2022  # Теперь используем Windows 2022
+    runs-on: windows-2022  # Используем 2022, но с настройками для Win7
+    timeout-minutes: 30
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    # Устанавливаем Python 3.8 (последний для Win7)
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.8'
-        architecture: 'x86'  # 32-битная версия для лучшей совместимости
+      - name: Set up Python 3.8 (Win7 compatible)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.8.10"
+          architecture: "x86"  # 32-битная версия для лучшей совместимости
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install docxtpl==0.6.3 python-docx==0.8.10 pyinstaller==4.10
+      - name: Install Windows 7 dependencies
+        run: |
+          # Устанавливаем необходимые системные компоненты
+          choco install -y vcredist2010 kb2999226
 
-    # Специальные настройки для совместимости с Win7
-    - name: Build EXE with Win7 support
-      run: |
-        pyinstaller --onefile `
-          --win-private-assemblies `
-          --add-data "template.docx;." `
-          --target-architecture win32 `
-          --runtime-tmpdir=. `
-          --name InvoiceGenerator `
-          main.py
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip==20.3.4  # Более старая версия pip для совместимости
+          pip install docxtpl==0.6.3 python-docx==0.8.7 pyinstaller==4.10
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: InvoiceGenerator-Win7
-        path: dist/InvoiceGenerator.exe
+      - name: Build EXE with Win7 support
+        run: |
+          pyinstaller `
+            --onefile `
+            --noconfirm `
+            --win-private-assemblies `
+            --add-data "template.docx;." `
+            --target-architecture win32 `
+            --runtime-tmpdir=. `
+            --name InvoiceGenerator `
+            --clean `
+            main.py
+
+      - name: Add VC++ Redist DLLs
+        run: |
+          # Копируем необходимые DLL из системы
+          copy "C:\Windows\System32\vcruntime140.dll" dist\
+          copy "C:\Windows\System32\msvcp140.dll" dist\
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: InvoiceGenerator-Win7
+          path: |
+            dist/InvoiceGenerator.exe
+            template.docx  # Включаем шаблон в артефакт
+          retention-days: 5
+
+      - name: Create portable package
+        run: |
+          # Создаём ZIP-архив со всеми зависимостями
+          Compress-Archive -Path .\dist\* -DestinationPath .\InvoiceGenerator-Win7-Portable.zip
+          
+      - name: Upload portable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: InvoiceGenerator-Win7-Portable
+          path: InvoiceGenerator-Win7-Portable.zip
+          retention-days: 5
