@@ -1,5 +1,6 @@
-from docxtpl import DocxTemplate
-from tkinter import Tk, Label, Button, filedialog, messagebox, Text, END, StringVar
+from docxtpl import DocxTemplate, RichText
+from tkinter import Tk, Label, Button, filedialog, messagebox, Text, END, StringVar, Frame, Canvas, Scrollbar, VERTICAL, \
+    RIGHT, Y, BOTH, NW
 import os
 import platform
 import subprocess
@@ -58,16 +59,23 @@ def open_file(path):
 
 def fill_template():
     try:
-        def preserve_newlines(text):
-            return text.replace('\n', '<w:br/>')
+        # Функция для сохранения переносов строк через RichText
+        def format_text(text):
+            rt = RichText()
+            lines = text.split('\n')
+            for i, line in enumerate(lines):
+                if i > 0:  # Добавляем перенос для всех строк кроме первой
+                    rt.add('\n')
+                rt.add(line)
+            return rt
 
         context = {
             'data': data_entry.get(),
             'number': number_entry.get(),
             'sender': sender_var.get(),
             'receiver': receiver_var.get(),
-            'products': preserve_newlines(products_text.get("1.0", END).strip()),
-            'counts': preserve_newlines(counts_text.get("1.0", END).strip()),
+            'products': format_text(products_text.get("1.0", END).strip()),
+            'counts': format_text(counts_text.get("1.0", END).strip()),
             'transporter': transporter_entry.get(),
             'driver': driver_entry.get(),
             'car': car_entry.get(),
@@ -79,7 +87,7 @@ def fill_template():
         }
 
         doc = DocxTemplate("template.docx")
-        doc.render(context, autoescape=True)
+        doc.render(context)
 
         default_filename = f"Накладная_{context['number']}.docx"
         save_path = filedialog.asksaveasfilename(
@@ -122,20 +130,53 @@ def update_comboboxes():
     receiver_combobox['values'] = data['receivers']
 
 
-# Основное окно
+# Основное окно с полноэкранной прокруткой
 root = Tk()
 root.title("Генератор транспортных накладных")
-root.geometry("750x900")
+root.geometry("850x600")  # Стартовый размер окна
+root.minsize(800, 500)  # Минимальный размер
+
+# Создаем основной контейнер с прокруткой
+container = Frame(root)
+container.pack(fill=BOTH, expand=True)
+
+# Создаем Canvas и Scrollbar
+canvas = Canvas(container)
+scrollbar = Scrollbar(container, orient=VERTICAL, command=canvas.yview)
+scrollable_frame = Frame(canvas)
+
+# Привязка прокрутки
+scrollable_frame.bind(
+    "<Configure>",
+    lambda e: canvas.configure(
+        scrollregion=canvas.bbox("all")
+    )
+)
+
+canvas.create_window((0, 0), window=scrollable_frame, anchor=NW)
+canvas.configure(yscrollcommand=scrollbar.set)
+
+# Размещаем элементы
+canvas.pack(side="left", fill=BOTH, expand=True)
+scrollbar.pack(side="right", fill=Y)
+
+
+# Настройка прокрутки колесиком мыши
+def _on_mousewheel(event):
+    canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+
+canvas.bind_all("<MouseWheel>", _on_mousewheel)
 
 # Стилизация
 style = ttk.Style()
-style.configure('TEntry', font=MEDIUM_FONT, padding=8)
-style.configure('TCombobox', font=MEDIUM_FONT, padding=8)
+style.configure('TEntry', font=MEDIUM_FONT, padding=5)
+style.configure('TCombobox', font=MEDIUM_FONT, padding=5)
 style.map('TCombobox',
           fieldbackground=[('readonly', 'white'), ('active', '#f0f0f0')],
           selectbackground=[('readonly', '#e6f2ff')])
 
-# Поля ввода
+# Поля ввода (обычные однострочные)
 fields = [
     ("Дата (ДД.ММ.ГГГГ):", "data_entry"),
     ("Номер накладной:", "number_entry"),
@@ -150,46 +191,51 @@ fields = [
 ]
 
 for i, (label_text, var_name) in enumerate(fields):
-    Label(root, text=label_text, font=LARGE_FONT).grid(row=i, column=0, padx=10, pady=1, sticky="e")
-    entry = ttk.Entry(root, width=35, font=MEDIUM_FONT)
-    entry.grid(row=i, column=1, padx=10, pady=1, sticky="w")
+    Label(scrollable_frame, text=label_text, font=LARGE_FONT).grid(row=i, column=0, padx=10, pady=5, sticky="e")
+    entry = ttk.Entry(scrollable_frame, width=35, font=MEDIUM_FONT)
+    entry.grid(row=i, column=1, padx=10, pady=5, sticky="w")
     globals()[var_name] = entry
 
-# Выпадающие списки
+# Выпадающие списки для компаний
 sender_var = StringVar()
 receiver_var = StringVar()
 
-Label(root, text="Грузоотправитель:", font=LARGE_FONT).grid(row=len(fields), column=0, padx=10, pady=1, sticky="e")
-sender_combobox = ttk.Combobox(root, textvariable=sender_var, width=35, font=MEDIUM_FONT)
-sender_combobox.grid(row=len(fields), column=1, padx=10, pady=1, sticky="w")
+row_start = len(fields)
+Label(scrollable_frame, text="Грузоотправитель:", font=LARGE_FONT).grid(row=row_start, column=0, padx=10, pady=5,
+                                                                        sticky="e")
+sender_combobox = ttk.Combobox(scrollable_frame, textvariable=sender_var, width=32, font=MEDIUM_FONT)
+sender_combobox.grid(row=row_start, column=1, padx=10, pady=5, sticky="w")
 
-add_sender_btn = Button(root, text="+ Добавить", command=lambda: create_company_popup("senders", update_comboboxes),
+add_sender_btn = Button(scrollable_frame, text="+ Добавить",
+                        command=lambda: create_company_popup("senders", update_comboboxes),
                         font=MEDIUM_FONT, bg='#2196F3', fg='black')
-add_sender_btn.grid(row=len(fields), column=2, padx=10, pady=1)
+add_sender_btn.grid(row=row_start, column=2, padx=5, pady=5)
 
-Label(root, text="Грузополучатель:", font=LARGE_FONT).grid(row=len(fields) + 1, column=0, padx=10, pady=1, sticky="e")
-receiver_combobox = ttk.Combobox(root, textvariable=receiver_var, width=35, font=MEDIUM_FONT)
-receiver_combobox.grid(row=len(fields) + 1, column=1, padx=10, pady=1, sticky="w")
+Label(scrollable_frame, text="Грузополучатель:", font=LARGE_FONT).grid(row=row_start + 1, column=0, padx=10, pady=5,
+                                                                       sticky="e")
+receiver_combobox = ttk.Combobox(scrollable_frame, textvariable=receiver_var, width=32, font=MEDIUM_FONT)
+receiver_combobox.grid(row=row_start + 1, column=1, padx=10, pady=5, sticky="w")
 
-add_receiver_btn = Button(root, text="+ Добавить", command=lambda: create_company_popup("receivers", update_comboboxes),
+add_receiver_btn = Button(scrollable_frame, text="+ Добавить",
+                          command=lambda: create_company_popup("receivers", update_comboboxes),
                           font=MEDIUM_FONT, bg='#2196F3', fg='black')
-add_receiver_btn.grid(row=len(fields) + 1, column=2, padx=10, pady=1)
+add_receiver_btn.grid(row=row_start + 1, column=2, padx=5, pady=5)
 
 # Многострочные поля
-row_offset = len(fields) + 2
-Label(root, text="Груз:", font=LARGE_FONT).grid(row=row_offset, column=0, padx=10, pady=1, sticky="ne")
-products_text = Text(root, height=8, width=50, wrap="word", font=MEDIUM_FONT)
-products_text.grid(row=row_offset, column=1, padx=10, pady=1, sticky="w", columnspan=2)
+row_offset = row_start + 2
+Label(scrollable_frame, text="Груз:", font=LARGE_FONT).grid(row=row_offset, column=0, padx=10, pady=5, sticky="ne")
+products_text = Text(scrollable_frame, height=6, width=50, wrap="word", font=MEDIUM_FONT)
+products_text.grid(row=row_offset, column=1, padx=10, pady=5, sticky="w", columnspan=2)
 
-Label(root, text="Количество, маркировка:", font=LARGE_FONT).grid(row=row_offset + 1, column=0, padx=10, pady=8,
-                                                                  sticky="ne")
-counts_text = Text(root, height=8, width=50, wrap="word", font=MEDIUM_FONT)
-counts_text.grid(row=row_offset + 1, column=1, padx=10, pady=1, sticky="w", columnspan=2)
+Label(scrollable_frame, text="Количество, маркировка:", font=LARGE_FONT).grid(row=row_offset + 1, column=0, padx=10,
+                                                                              pady=5, sticky="ne")
+counts_text = Text(scrollable_frame, height=6, width=50, wrap="word", font=MEDIUM_FONT)
+counts_text.grid(row=row_offset + 1, column=1, padx=10, pady=5, sticky="w", columnspan=2)
 
 # Кнопка создания
-Button(root, text="Создать накладную", command=fill_template,
-       font=BUTTON_FONT, bg='#4CAF50', fg='black', height=2, width=20) \
-    .grid(row=row_offset + 2, column=0, columnspan=3, pady=5)
+Button(scrollable_frame, text="Создать накладную", command=fill_template,
+       font=BUTTON_FONT, bg='#4CAF50', fg='black', height=1, width=20) \
+    .grid(row=row_offset + 2, column=0, columnspan=3, pady=15)
 
 update_comboboxes()
 root.mainloop()
