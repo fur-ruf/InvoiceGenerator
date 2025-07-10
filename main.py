@@ -238,4 +238,28 @@ Button(scrollable_frame, text="Создать накладную", command=fill_
     .grid(row=row_offset + 2, column=0, columnspan=3, pady=15)
 
 update_comboboxes()
+
+# Добавление поддержки Ctrl+V
+def setup_paste_support():
+    # Функция для вставки в Combobox
+    def paste_to_combobox(event):
+        widget = event.widget
+        if widget.selection_present():
+            widget.delete(widget.selection_first(), widget.selection_last())
+        widget.insert("insert", root.clipboard_get())
+
+    # Обработчики для всех полей
+    for entry in [data_entry, number_entry, transporter_entry, driver_entry,
+                  car_entry, car_number_entry, from_entry, adress_from_entry,
+                  signature_entry, adress_to_entry]:
+        entry.bind("<Control-v>", lambda e: e.widget.event_generate("<<Paste>>"))
+
+    for text in [products_text, counts_text]:
+        text.bind("<Control-v>", lambda e: e.widget.event_generate("<<Paste>>"))
+
+    for combobox in [sender_combobox, receiver_combobox]:
+        combobox.bind("<Control-v>", paste_to_combobox)
+
+setup_paste_support()
+
 root.mainloop()
