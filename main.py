@@ -239,26 +239,39 @@ Button(scrollable_frame, text="Создать накладную", command=fill_
 
 update_comboboxes()
 
-# Добавление поддержки Ctrl+V
+
+# Улучшенная поддержка вставки для Windows 7
 def setup_paste_support():
-    # Функция для вставки в Combobox
-    def paste_to_combobox(event):
+    # Функция для вставки в Entry и Text
+    def paste_to_widget(event):
         widget = event.widget
-        if widget.selection_present():
-            widget.delete(widget.selection_first(), widget.selection_last())
-        widget.insert("insert", root.clipboard_get())
+        try:
+            text = root.clipboard_get()
+        except:
+            return
+
+        if isinstance(widget, ttk.Entry):
+            if widget.selection_present():
+                widget.delete(widget.selection_first(), widget.selection_last())
+            widget.insert("insert", text)
+        elif isinstance(widget, Text):
+            if widget.tag_ranges("sel"):
+                widget.delete("sel.first", "sel.last")
+            widget.insert("insert", text)
+        elif isinstance(widget, ttk.Combobox):
+            if widget.selection_present():
+                widget.delete(widget.selection_first(), widget.selection_last())
+            widget.insert("insert", text)
+        return "break"  # Предотвращаем стандартную обработку
 
     # Обработчики для всех полей
-    for entry in [data_entry, number_entry, transporter_entry, driver_entry,
-                  car_entry, car_number_entry, from_entry, adress_from_entry,
-                  signature_entry, adress_to_entry]:
-        entry.bind("<Control-v>", lambda e: e.widget.event_generate("<<Paste>>"))
+    for widget in [data_entry, number_entry, transporter_entry, driver_entry,
+                   car_entry, car_number_entry, from_entry, adress_from_entry,
+                   signature_entry, adress_to_entry, products_text, counts_text,
+                   sender_combobox, receiver_combobox]:
+        widget.bind("<Control-v>", paste_to_widget)
+        widget.bind("<Button-3><ButtonRelease-3>", lambda e: e.widget.event_generate("<<Paste>>"))
 
-    for text in [products_text, counts_text]:
-        text.bind("<Control-v>", lambda e: e.widget.event_generate("<<Paste>>"))
-
-    for combobox in [sender_combobox, receiver_combobox]:
-        combobox.bind("<Control-v>", paste_to_combobox)
 
 setup_paste_support()
 
