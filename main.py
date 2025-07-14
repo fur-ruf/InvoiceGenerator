@@ -116,6 +116,20 @@ def create_company_popup(company_type, callback):
     entry = ttk.Entry(popup, width=30, font=MEDIUM_FONT)
     entry.pack(pady=10)
 
+    # Добавляем поддержку вставки в поле ввода
+    def paste_to_entry(event):
+        try:
+            text = popup.clipboard_get()
+            if entry.selection_present():
+                entry.delete(entry.selection_first(), entry.selection_last())
+            entry.insert("insert", text)
+            return "break"
+        except:
+            return
+
+    entry.bind("<Control-v>", paste_to_entry)
+    entry.bind("<Button-3><ButtonRelease-3>", lambda e: entry.event_generate("<<Paste>>"))
+
     def save_and_close():
         add_company(company_type, entry.get(), callback)
         popup.destroy()
@@ -180,14 +194,14 @@ style.map('TCombobox',
 fields = [
     ("Дата (ДД.ММ.ГГГГ):", "data_entry"),
     ("Номер накладной:", "number_entry"),
-    ("Перевозчик:", "transporter_entry"),
-    ("Водитель:", "driver_entry"),
-    ("Машина:", "car_entry"),
-    ("Номер машины:", "car_number_entry"),
-    ("8. Прием груза:", "from_entry"),
-    ("Место погрузки:", "adress_from_entry"),
-    ("Подпись:", "signature_entry"),
-    ("Место доставки:", "adress_to_entry")
+    ("Перевозчик (6):", "transporter_entry"),
+    ("Водитель (6):", "driver_entry"),
+    ("Машина (7):", "car_entry"),
+    ("Номер машины (7):", "car_number_entry"),
+    ("Прием груза (8):", "from_entry"),
+    ("Место погрузки (8):", "adress_from_entry"),
+    ("Подпись (8, 10):", "signature_entry"),
+    ("Место доставки (10):", "adress_to_entry")
 ]
 
 for i, (label_text, var_name) in enumerate(fields):
@@ -201,7 +215,7 @@ sender_var = StringVar()
 receiver_var = StringVar()
 
 row_start = len(fields)
-Label(scrollable_frame, text="Грузоотправитель:", font=LARGE_FONT).grid(row=row_start, column=0, padx=10, pady=5,
+Label(scrollable_frame, text="Грузоотправитель (1, 12):", font=LARGE_FONT).grid(row=row_start, column=0, padx=10, pady=5,
                                                                         sticky="e")
 sender_combobox = ttk.Combobox(scrollable_frame, textvariable=sender_var, width=32, font=MEDIUM_FONT)
 sender_combobox.grid(row=row_start, column=1, padx=10, pady=5, sticky="w")
@@ -211,7 +225,7 @@ add_sender_btn = Button(scrollable_frame, text="+ Добавить",
                         font=MEDIUM_FONT, bg='#2196F3', fg='black')
 add_sender_btn.grid(row=row_start, column=2, padx=5, pady=5)
 
-Label(scrollable_frame, text="Грузополучатель:", font=LARGE_FONT).grid(row=row_start + 1, column=0, padx=10, pady=5,
+Label(scrollable_frame, text="Грузополучатель (1а, 2, 12):", font=LARGE_FONT).grid(row=row_start + 1, column=0, padx=10, pady=5,
                                                                        sticky="e")
 receiver_combobox = ttk.Combobox(scrollable_frame, textvariable=receiver_var, width=32, font=MEDIUM_FONT)
 receiver_combobox.grid(row=row_start + 1, column=1, padx=10, pady=5, sticky="w")
@@ -223,11 +237,11 @@ add_receiver_btn.grid(row=row_start + 1, column=2, padx=5, pady=5)
 
 # Многострочные поля
 row_offset = row_start + 2
-Label(scrollable_frame, text="Груз:", font=LARGE_FONT).grid(row=row_offset, column=0, padx=10, pady=5, sticky="ne")
+Label(scrollable_frame, text="Груз (3):", font=LARGE_FONT).grid(row=row_offset, column=0, padx=10, pady=5, sticky="ne")
 products_text = Text(scrollable_frame, height=6, width=50, wrap="word", font=MEDIUM_FONT)
 products_text.grid(row=row_offset, column=1, padx=10, pady=5, sticky="w", columnspan=2)
 
-Label(scrollable_frame, text="Количество, маркировка:", font=LARGE_FONT).grid(row=row_offset + 1, column=0, padx=10,
+Label(scrollable_frame, text="Количество, маркировка (3):", font=LARGE_FONT).grid(row=row_offset + 1, column=0, padx=10,
                                                                               pady=5, sticky="ne")
 counts_text = Text(scrollable_frame, height=6, width=50, wrap="word", font=MEDIUM_FONT)
 counts_text.grid(row=row_offset + 1, column=1, padx=10, pady=5, sticky="w", columnspan=2)
@@ -240,7 +254,7 @@ Button(scrollable_frame, text="Создать накладную", command=fill_
 update_comboboxes()
 
 
-# Улучшенная поддержка вставки для Windows 7
+# Улучшенная поддержка вставки для всех виджетов
 def setup_paste_support():
     # Функция для вставки в Entry и Text
     def paste_to_widget(event):
